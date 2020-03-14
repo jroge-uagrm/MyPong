@@ -15,48 +15,85 @@ import android.widget.Toast;
 
 import java.util.LinkedList;
 
-public class MainActivity extends AppCompatActivity implements SensorEventListener {
+public class MainActivity extends AppCompatActivity {
 
-    private float x, y, z;
-    private LinkedList<Integer> valueList;
-    private TextView middleForceValue, middleAngleValue, lastForceValue, lastAngleValue;
-    private boolean saveValue;
+    private float accelerometerZAxis, gyroscopeZAxis;
+    private LinkedList<Integer> accelerometerValueList, gyroscopeValueList;
+    private TextView averageForceValue, averageAngleValue, lastForceValue, lastAngleValue;
+    private boolean isPressing;
+
+    private final int accelerometerType = Sensor.TYPE_ACCELEROMETER;
+    private final int angleType = Sensor.TYPE_GYROSCOPE;
+    //fastest:0.01 game:0.02 normal:0.20 ui:~0.65
+    private final int accelerometerSensorSpeed = SensorManager.SENSOR_DELAY_GAME;
+    private final int gyroscopeSensorSpeed = SensorManager.SENSOR_DELAY_GAME;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
         SensorManager senSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-        Sensor senAccelerometer = senSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-        senSensorManager.registerListener(this, senAccelerometer, SensorManager.SENSOR_DELAY_NORMAL);
-        middleForceValue = findViewById(R.id.txtMiddleForceValue);
-        middleAngleValue = findViewById(R.id.txtMiddleAngleValue);
+        Sensor accelerometerSensor = senSensorManager.getDefaultSensor(accelerometerType);
+        Sensor gyroscopeSensor = senSensorManager.getDefaultSensor(angleType);
+        if (accelerometerSensor != null) {
+            senSensorManager.registerListener(accelerometerSensorListener, accelerometerSensor, accelerometerSensorSpeed);
+            Log.d("OK", "Accelerometer listening");
+        } else {
+            Log.d("ERROR", "Accelerometer not listening");
+        }
+        if (gyroscopeSensor != null) {
+            senSensorManager.registerListener(gyroscopeSensorListener, gyroscopeSensor, gyroscopeSensorSpeed);
+            Log.d("OK", "Gyroscope listening");
+        } else {
+            Log.d("ERROR", "Gyroscope not listening");
+        }
+        averageForceValue = findViewById(R.id.txtMiddleForceValue);
+        averageAngleValue = findViewById(R.id.txtMiddleAngleValue);
         lastForceValue = findViewById(R.id.txtLastForceValue);
         lastAngleValue = findViewById(R.id.txtLastAngleValue);
-        valueList = new LinkedList<>();
-        saveValue = false;
+        accelerometerValueList = new LinkedList<>();
+        gyroscopeValueList = new LinkedList<>();
+        isPressing = false;
     }
 
-    @Override
-    public void onSensorChanged(SensorEvent event) {
-        Sensor mySensor = event.sensor;
-        if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
-            if (mySensor.getType() == Sensor.TYPE_ACCELEROMETER) {
-                x = event.values[0];
-                y = event.values[1];
-                z = event.values[2];
-                if (saveValue) {
-                    valueList.add((int) z);
-                    Log.d("TIME", "" + event.timestamp / 100000000);
+    private SensorEventListener accelerometerSensorListener = new SensorEventListener() {
+        @Override
+        public void onSensorChanged(SensorEvent event) {
+            if (event.sensor.getType() == accelerometerType) {
+                accelerometerZAxis = event.values[2];
+                if (isPressing) {
+                    accelerometerValueList.add((int) accelerometerZAxis);
                 }
             }
         }
-    }
+
+        @Override
+        public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
+        }
+    };
+
+    private SensorEventListener gyroscopeSensorListener = new SensorEventListener() {
+        @Override
+        public void onSensorChanged(SensorEvent event) {
+            if (event.sensor.getType() == angleType) {
+                gyroscopeZAxis = event.values[2];
+                if (isPressing) {
+                    gyroscopeValueList.add((int) gyroscopeZAxis);
+                }
+            }
+        }
+
+        @Override
+        public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        }
+    };
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (keyCode == 25) {
-            saveValue = true;
+            isPressing = true;
         }
         return true;
     }
@@ -64,32 +101,36 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
         if (keyCode == 25) {
-            saveValue = false;
+            isPressing = false;
             showValues();
         }
         return true;
     }
 
     private void showValues() {
-        middleForceValue.setText(Integer.toString(getValuesAverage()));
-        lastForceValue.setText(Integer.toString((int) z));
-        valueList = new LinkedList<>();
+        averageForceValue.setText(Integer.toString(getAccelerometerValuesAverage()));
+        averageAngleValue.setText(Integer.toString(getGyroscopeValuesAverage()));
+        lastForceValue.setText(Integer.toString((int) accelerometerZAxis));
+        lastAngleValue.setText(Integer.toString((int) gyroscopeZAxis));
+        accelerometerValueList = new LinkedList<>();
+        gyroscopeValueList = new LinkedList<>();
     }
 
-    private int getValuesAverage() {
+    private int getAccelerometerValuesAverage() {
         int s = 0;
-        for (int i = 0; i < valueList.size(); i++) {
-            s += valueList.get(i);
-            Log.d("Value[" + i + "]", "" + valueList.get(i));
+        for (int i = 0; i < accelerometerValueList.size(); i++) {
+            s += accelerometerValueList.get(i);
+            Log.d("AccelerometerValue[" + i + "]", "" + accelerometerValueList.get(i));
         }
-        return s / valueList.size();
+        return accelerometerValueList.size() > 0 ? s / accelerometerValueList.size() : 0;
     }
 
-    @Override
-    public void onAccuracyChanged(Sensor sensor, int accuracy) {
-    }
-
-    @Override
-    public void onPointerCaptureChanged(boolean hasCapture) {
+    private int getGyroscopeValuesAverage() {
+        int s = 0;
+        for (int i = 0; i < gyroscopeValueList.size(); i++) {
+            s += gyroscopeValueList.get(i);
+            Log.d("GyroscopeValue[" + i + "]", "" + gyroscopeValueList.get(i));
+        }
+        return gyroscopeValueList.size() > 0 ? s / gyroscopeValueList.size() : 0;
     }
 }
