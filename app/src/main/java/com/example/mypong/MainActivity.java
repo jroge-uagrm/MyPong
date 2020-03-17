@@ -11,7 +11,6 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import java.util.LinkedList;
 
@@ -19,11 +18,11 @@ public class MainActivity extends AppCompatActivity {
 
     private float accelerometerZAxis, gyroscopeZAxis;
     private LinkedList<Integer> accelerometerValueList, gyroscopeValueList;
-    private TextView averageForceValue, averageAngleValue, lastForceValue, lastAngleValue;
+    private TextView ForceValue, AngleValue, x, y, z;
     private boolean isPressing;
 
     private final int accelerometerType = Sensor.TYPE_ACCELEROMETER;
-    private final int angleType = Sensor.TYPE_GYROSCOPE;
+    private final int angleType = Sensor.TYPE_ROTATION_VECTOR;
     //fastest:0.01 game:0.02 normal:0.20 ui:~0.65
     private final int accelerometerSensorSpeed = SensorManager.SENSOR_DELAY_GAME;
     private final int gyroscopeSensorSpeed = SensorManager.SENSOR_DELAY_GAME;
@@ -48,10 +47,11 @@ public class MainActivity extends AppCompatActivity {
         } else {
             Log.d("ERROR", "Gyroscope not listening");
         }
-        averageForceValue = findViewById(R.id.txtMiddleForceValue);
-        averageAngleValue = findViewById(R.id.txtMiddleAngleValue);
-        lastForceValue = findViewById(R.id.txtLastForceValue);
-        lastAngleValue = findViewById(R.id.txtLastAngleValue);
+        ForceValue = findViewById(R.id.txtMiddleForceValue);
+        AngleValue = findViewById(R.id.txtMiddleAngleValue);
+        x = findViewById(R.id.txtX);
+        y = findViewById(R.id.txtY);
+        z = findViewById(R.id.txtZ);
         accelerometerValueList = new LinkedList<>();
         gyroscopeValueList = new LinkedList<>();
         isPressing = false;
@@ -79,8 +79,11 @@ public class MainActivity extends AppCompatActivity {
         public void onSensorChanged(SensorEvent event) {
             if (event.sensor.getType() == angleType) {
                 gyroscopeZAxis = event.values[2];
+                x.setText("x:" + String.format("%.2f", event.values[0]));
+                y.setText("y:" + String.format("%.2f", event.values[1]));
+                z.setText("z:" + String.format("%.2f", event.values[2]));
                 if (isPressing) {
-                    gyroscopeValueList.add((int) gyroscopeZAxis);
+                    gyroscopeValueList.add((int) (gyroscopeZAxis * 100));
                 }
             }
         }
@@ -108,10 +111,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showValues() {
-        averageForceValue.setText(Integer.toString(getAccelerometerValuesAverage()));
-        averageAngleValue.setText(Integer.toString(getGyroscopeValuesAverage()));
-        lastForceValue.setText(Integer.toString((int) accelerometerZAxis));
-        lastAngleValue.setText(Integer.toString((int) gyroscopeZAxis));
+        ForceValue.setText(Integer.toString(getAccelerometerValuesAverage()));
+        AngleValue.setText(Integer.toString(getDifferenceOfTheLastAndFirstGyroscopeValues())+"°");
         accelerometerValueList = new LinkedList<>();
         gyroscopeValueList = new LinkedList<>();
     }
@@ -132,5 +133,9 @@ public class MainActivity extends AppCompatActivity {
             Log.d("GyroscopeValue[" + i + "]", "" + gyroscopeValueList.get(i));
         }
         return gyroscopeValueList.size() > 0 ? s / gyroscopeValueList.size() : 0;
+    }
+
+    private int getDifferenceOfTheLastAndFirstGyroscopeValues() {
+        return gyroscopeValueList.get(0) - gyroscopeValueList.get(gyroscopeValueList.size() - 1);
     }
 }
